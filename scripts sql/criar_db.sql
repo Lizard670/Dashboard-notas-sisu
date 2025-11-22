@@ -1,4 +1,4 @@
-CREATE DATABASE NotasEnem;
+CREATE DATABASE IF NOT EXISTS NotasEnem;
 USE NotasEnem;
 
 CREATE TABLE Pessoa ( 
@@ -19,19 +19,30 @@ CREATE TABLE NotaEnem (
     Redacao INT
 ); 
 
-CREATE TABLE Faculdade ( 
-    idFaculdade INT PRIMARY KEY AUTO_INCREMENT,  
+CREATE TABLE Instituicao ( 
+    Codigo_IES INT PRIMARY KEY,  
     Sigla VARCHAR(255) not null,
-    NomeFaculdade VARCHAR(255)
+    Nome VARCHAR(255)
+); 
+
+CREATE TABLE Campus (
+	idCampus INT PRIMARY KEY AUTO_INCREMENT,
+    Codigo_IES INT, 
+    FOREIGN KEY(Codigo_IES) REFERENCES Instituicao (Codigo_IES),
+    
+    Nome VARCHAR(255),
+    Cidade VARCHAR(255),
+    UF VARCHAR(255),
+    Regiao VARCHAR(255)
 ); 
 
 CREATE TABLE Curso( 
-    idCurso INT PRIMARY KEY AUTO_INCREMENT,  
-    NomeCurso VARCHAR (255) not null,  
+    Codigo_IES_Curso INT PRIMARY KEY,  
+    idCampus INT,  
+    FOREIGN KEY(idCampus) REFERENCES Campus (idCampus),
+    Nome VARCHAR (255) not null,  
     Modalidade VARCHAR (255),  
     Turno VARCHAR(255),
-    idFaculdade INT,  
-    FOREIGN KEY(idFaculdade) REFERENCES Faculdade (idFaculdade),
 
     PesoLinguagens INT,  
     PesoHumanas INT,  
@@ -42,15 +53,18 @@ CREATE TABLE Curso(
 
 CREATE TABLE Cota ( 
     idCota INT PRIMARY KEY AUTO_INCREMENT,  
-    Nome VARCHAR(255) not null,  
-    Descricao VARCHAR(255)  
+    Codigo_IES INT, 
+    FOREIGN KEY(Codigo_IES) REFERENCES Instituicao (Codigo_IES),
+    
+    Nome VARCHAR(256) not null,  
+    Descricao VARCHAR(2048)  
 ); 
 
 CREATE TABLE CotaCurso ( 
     idCota INT,  
-    idCurso INT,  
+    Codigo_IES_Curso INT,  
     FOREIGN KEY(idCota) REFERENCES Cota (idCota),
-    FOREIGN KEY(idCurso) REFERENCES Curso (idCurso),
+    FOREIGN KEY(Codigo_IES_Curso) REFERENCES Curso (Codigo_IES_Curso),
     Nota FLOAT  
 ); 
 
