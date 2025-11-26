@@ -1,5 +1,6 @@
 import pandas as pd
 import sqlalchemy
+from sqlalchemy.orm import sessionmaker
 
 def main():
     motor_sql = sqlalchemy.create_engine('mysql+mysqlconnector://root:toor@localhost:3306/NotasEnem')
@@ -15,6 +16,7 @@ def main():
             "\n|5 - Ler cursos                   |"
             "\n|6 - Ler cotas                    |"
             "\n|7 - Ler notas de corte           |"
+            "\n|8 - Corrigir nomes cotas         |"
             "\n|0 - Sair                         |"
             f"\n+{'-='*16}-+"
             "\nSelecione uma opção: ")
@@ -33,18 +35,18 @@ def main():
                              "duplicadas": ["Codigo_IES", "Nome"]},
                   "cota": {"manter": ["CO_IES", "TIPO_CONCORRENCIA", "DS_MOD_CONCORRENCIA"],
                            "colunas": ["Codigo_IES", "Nome", "Descricao"],
-                           "duplicadas": ["Codigo_IES", "Nome"]},
+                           "duplicadas": ["Codigo_IES", "Descricao"]},
                   "curso": {"manter": ["CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "NO_CURSO", "DS_GRAU", "DS_TURNO"],
                             "colunas": ["CO_IES", "NomeCampus", "Codigo_IES_Curso", "Nome", "Modalidade", "Turno"],
                             "duplicadas": ["Codigo_IES_Curso"]},
-                  "cotacurso": {"manter": ["CO_IES", "CO_IES_CURSO", "TIPO_CONCORRENCIA", "NU_NOTACORTE"],
-                                "colunas": ["CO_IES", "Codigo_IES_Curso", "TIPO_CONCORRENCIA", "Nota"],
+                  "cotacurso": {"manter": ["CO_IES", "CO_IES_CURSO", "DS_MOD_CONCORRENCIA", "NU_NOTACORTE"],
+                                "colunas": ["CO_IES", "Codigo_IES_Curso", "DS_MOD_CONCORRENCIA", "Nota"],
                                 "duplicadas": []}}
     
     while opcao != 0:
         try:
             opcao = int(input(menu))
-            if not 0 <= opcao <= 7:
+            if not 0 <= opcao <= 8:
                 raise ValueError
         except ValueError:
             print("Valor invalido")
@@ -62,15 +64,41 @@ def main():
             novo = input("Caminho do novo arquivo(Vazio para cancelar): ").split()
             if novo != "":
                 arquivo_pesos = novo
-        
+
+        if opcao == 8:
+            df = pd.read_excel("correcao_cotas.xlsx", sheet_name="Sheet1")
+            cotas = {}
+            for _, linha in df.iterrows():
+                if linha["Nome"] not in cotas:
+                    cotas[linha["Nome"]] = []
+                cotas[linha["Nome"]].append(linha["Descricao"])
+            
+            sessao = sessionmaker(bind=motor_sql)()
+
+            for cota, descricoes in cotas.items():
+                print(f"{cota}:")
+                for descricao in descricoes:
+                    if len(descricao) > 80:
+                        print(f"    -{descricao[:80]}")
+                    else:
+                        print(f"    -{descricao}")
+                tabela_cota = sqlalchemy.table("cota")
+                update = sqlalchemy.text("UPDATE cota"
+                                        f"    SET nome = '{cota}'"
+                                         "    WHERE nome = 'V' AND "
+                                        f"    descricao IN ('{'\', \''.join(list(descricoes))}');")
+                sessao.execute(update) 
+            sessao.commit()
+            sessao.close()
+
         elif 2 < opcao <= 7:
             tabela = equivalencias[opcao]
             df = ler_generico(arquivo, *argumentos[tabela].values())
 
             # Etapas necessárias pra pegar o idCampus(gerado pelo SQL) e o Peso das notas (Não presente na planilha principal)
             if tabela == "curso":
-                with motor_sql.connect() as connection:
-                    resultado_query = connection.execute(sqlalchemy.text('SELECT Codigo_IES, Nome, idCampus  FROM Campus'))
+                with motor_sql.connect() as conexao:
+                    resultado_query = conexao.execute(sqlalchemy.text('SELECT Codigo_IES, Nome, idCampus  FROM Campus'))
                     hash_id_campi = {f"{linha[0]}:{linha[1]}".lower(): 
                                         linha[2] 
                                      for linha in resultado_query}
@@ -124,20 +152,20 @@ def main():
                 print(f"Falhas pesos: {falhas_pesos}")
             # Etapas necessárias pra pegar o idCota(gerado pelo SQL)
             elif tabela == "cotacurso":
-                with motor_sql.connect() as connection:
-                    resultado_query = connection.execute(sqlalchemy.text('SELECT Codigo_IES, Nome, idCota  FROM Cota'))
+                with motor_sql.connect() as conexao:
+                    resultado_query = conexao.execute(sqlalchemy.text('SELECT Codigo_IES, Descricao, idCota  FROM Cota'))
                     hash_id_cota = {f"{linha[0]}:{linha[1]}".lower(): 
                                         linha[2] 
                                      for linha in resultado_query}
                 df["idCota"] = 0
                 for index, linha in df.iterrows():
-                    hash_id = f"{linha["CO_IES"]}:{linha["TIPO_CONCORRENCIA"]}".lower()
+                    hash_id = f"{linha["CO_IES"]}:{linha["DS_MOD_CONCORRENCIA"]}".lower()
 
                     try:
                         df.at[index, "idCota"] = hash_id_cota[hash_id]
                     except KeyError:
                         print(f"- Não encontrado cota \"{hash_id}\"")
-                df.drop(["CO_IES", "TIPO_CONCORRENCIA"], axis=1, inplace=True)
+                df.drop(["CO_IES", "DS_MOD_CONCORRENCIA"], axis=1, inplace=True)
 
             df.to_sql(name=tabela, con=motor_sql, if_exists='append', index=False)
 
