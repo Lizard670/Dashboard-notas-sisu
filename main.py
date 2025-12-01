@@ -5,12 +5,12 @@ import pandas as pd
 import sqlalchemy
 import numpy as np
 
-def main():
+def main(app):
     db_config = {
-        'host': 'localhost',
-        'database': 'NotasEnem',
-        'user': 'root',
-        'password': 'toor'
+        'host': 'LizandraAmaryllis.mysql.pythonanywhere-services.com',
+        'database': 'LizandraAmarylli$notasenem',
+        'user': 'LizandraAmarylli',
+        'password': 'toorroot'
     }
     db_config = db_config
     motor_sql = sqlalchemy.create_engine(f'mysql+mysqlconnector://{db_config["user"]}:{db_config["password"]}@{db_config["host"]}:3306/{db_config["database"]}')
@@ -24,7 +24,6 @@ def main():
     opcoes_turno = df_opcoes_turno['Turno'].tolist()
 
     # Cria o app do frontend
-    app = Dash(__name__, external_stylesheets=[dbc.themes.LUMEN])
     app.layout = gerar_layout(opcoes_notas, opcoes_turno)
 
     @app.callback(
@@ -126,9 +125,6 @@ def main():
                 opcoes_cotas)
 
 
-    app.run(debug=False, port=8002)
-
-
 def gerar_layout(opcoes_notas, opcoes_turno):
     colunas_tabela = [{"field": i} for i in ["Instituição", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"]]
     container = dbc.Container([
@@ -184,5 +180,6 @@ def gerar_layout(opcoes_notas, opcoes_turno):
     return container
 
 
-if __name__ == "__main__":
-    main()
+app = Dash(__name__, external_stylesheets=[dbc.themes.LUMEN])
+server = app.server
+main(app)

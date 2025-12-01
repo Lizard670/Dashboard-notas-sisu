@@ -4,10 +4,10 @@ from sqlalchemy.orm import sessionmaker
 
 def main(db_config=None):
     db_config = {
-        'host': 'localhost',
-        'database': 'NotasEnem',
-        'user': 'root',
-        'password': 'toor'
+        'host': 'LizandraAmaryllis.mysql.pythonanywhere-services.com',
+        'database': 'LizandraAmarylli$notasenem',
+        'user': 'LizandraAmarylli',
+        'password': 'toorroot'
     } if db_config is None else db_config
     motor_sql = sqlalchemy.create_engine(f'mysql+mysqlconnector://{db_config["user"]}:{db_config["password"]}@{db_config["host"]}:3306/{db_config["database"]}')
 
