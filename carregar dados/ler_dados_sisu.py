@@ -2,8 +2,14 @@ import pandas as pd
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 
-def main():
-    motor_sql = sqlalchemy.create_engine('mysql+mysqlconnector://root:toor@localhost:3306/NotasEnem')
+def main(db_config=None):
+    db_config = {
+        'host': 'localhost',
+        'database': 'NotasEnem',
+        'user': 'root',
+        'password': 'toor'
+    } if db_config is None else db_config
+    motor_sql = sqlalchemy.create_engine(f'mysql+mysqlconnector://{db_config["user"]}:{db_config["password"]}@{db_config["host"]}:3306/{db_config["database"]}')
 
     arquivo = "Portal Sisu_Sisu 2025_Inscrições e notas de corte.xlsx:inscricao_2025_1"
     arquivo_pesos = "ResultadoDia4.xlsx:Sheet1"
