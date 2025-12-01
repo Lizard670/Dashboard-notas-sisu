@@ -27,28 +27,28 @@ def main(db_config=None):
             f"\n+{'-='*16}-+"
             "\nSelecione uma opção: ")
     opcao = -1
-    
-    equivalencias = {3: "instituicao",
-                     4: "campus", 
-                     5: "curso", 
-                     6: "cota", 
-                     7: "cotacurso"}
-    argumentos = {"instituicao": {"manter": ["CO_IES", "NO_IES", "SG_IES"],
+
+    equivalencias = {3: "Instituicao",
+                     4: "Campus",
+                     5: "Curso",
+                     6: "Cota",
+                     7: "CotaCurso"}
+    argumentos = {"Instituicao": {"manter": ["CO_IES", "NO_IES", "SG_IES"],
                                   "colunas": ["Codigo_IES", "Nome", "Sigla"],
                                   "duplicadas": ["Codigo_IES"]},
-                  "campus": {"manter": ["CO_IES", "NO_CAMPUS", "NO_MUNICIPIO_CAMPUS", "SG_UF_CAMPUS", "DS_REGIAO_CAMPUS"],
+                  "Campus": {"manter": ["CO_IES", "NO_CAMPUS", "NO_MUNICIPIO_CAMPUS", "SG_UF_CAMPUS", "DS_REGIAO_CAMPUS"],
                              "colunas": ["Codigo_IES", "Nome", "Cidade", "UF", "Regiao"],
                              "duplicadas": ["Codigo_IES", "Nome"]},
-                  "cota": {"manter": ["CO_IES", "TIPO_CONCORRENCIA", "DS_MOD_CONCORRENCIA"],
+                  "Cota": {"manter": ["CO_IES", "TIPO_CONCORRENCIA", "DS_MOD_CONCORRENCIA"],
                            "colunas": ["Codigo_IES", "Nome", "Descricao"],
                            "duplicadas": ["Codigo_IES", "Descricao"]},
-                  "curso": {"manter": ["CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "NO_CURSO", "DS_GRAU", "DS_TURNO"],
+                  "Curso": {"manter": ["CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "NO_CURSO", "DS_GRAU", "DS_TURNO"],
                             "colunas": ["CO_IES", "NomeCampus", "Codigo_IES_Curso", "Nome", "Modalidade", "Turno"],
                             "duplicadas": ["Codigo_IES_Curso"]},
-                  "cotacurso": {"manter": ["CO_IES", "CO_IES_CURSO", "DS_MOD_CONCORRENCIA", "NU_NOTACORTE"],
+                  "CotaCurso": {"manter": ["CO_IES", "CO_IES_CURSO", "DS_MOD_CONCORRENCIA", "NU_NOTACORTE"],
                                 "colunas": ["CO_IES", "Codigo_IES_Curso", "DS_MOD_CONCORRENCIA", "Nota"],
                                 "duplicadas": []}}
-    
+
     while opcao != 0:
         try:
             opcao = int(input(menu))
@@ -71,14 +71,14 @@ def main(db_config=None):
             if novo != "":
                 arquivo_pesos = novo
 
-        if opcao == 8:
+        elif opcao == 8:
             df = pd.read_excel("correcao_cotas.xlsx", sheet_name="Sheet1")
             cotas = {}
             for _, linha in df.iterrows():
                 if linha["Nome"] not in cotas:
                     cotas[linha["Nome"]] = []
                 cotas[linha["Nome"]].append(linha["Descricao"])
-            
+
             sessao = sessionmaker(bind=motor_sql)()
 
             for cota, descricoes in cotas.items():
@@ -88,12 +88,11 @@ def main(db_config=None):
                         print(f"    -{descricao[:80]}")
                     else:
                         print(f"    -{descricao}")
-                tabela_cota = sqlalchemy.table("cota")
-                update = sqlalchemy.text("UPDATE cota"
-                                        f"    SET nome = '{cota}'"
-                                         "    WHERE nome = 'V' AND "
-                                        f"    descricao IN ('{'\', \''.join(list(descricoes))}');")
-                sessao.execute(update) 
+                update = sqlalchemy.text("UPDATE Cota"
+                                        f"    SET Nome = '{cota}'"
+                                         "    WHERE Nome = 'V' AND "
+                                        f"    Descricao IN ('{'\', \''.join(list(descricoes))}');")
+                sessao.execute(update)
             sessao.commit()
             sessao.close()
 
@@ -102,11 +101,11 @@ def main(db_config=None):
             df = ler_generico(arquivo, *argumentos[tabela].values())
 
             # Etapas necessárias pra pegar o idCampus(gerado pelo SQL) e o Peso das notas (Não presente na planilha principal)
-            if tabela == "curso":
+            if tabela == "Curso":
                 with motor_sql.connect() as conexao:
                     resultado_query = conexao.execute(sqlalchemy.text('SELECT Codigo_IES, Nome, idCampus  FROM Campus'))
-                    hash_id_campi = {f"{linha[0]}:{linha[1]}".lower(): 
-                                        linha[2] 
+                    hash_id_campi = {f"{linha[0]}:{linha[1]}".lower():
+                                        linha[2]
                                      for linha in resultado_query}
                 df["idCampus"] = 0
                 df["PesoLinguagens"] = 1
@@ -114,14 +113,13 @@ def main(db_config=None):
                 df["PesoNaturezas"] = 1
                 df["PesoMatematica"] = 1
                 df["PesoRedacao"] = 1
-                    
 
-                df_pesos = ler_generico(arquivo_pesos, 
+                df_pesos = ler_generico(arquivo_pesos,
                                         manter = ["CodigoIES", "Campus", "Nome_Curso", "Peso_Nota_CN", "Peso_Nota_MT", "Peso_Nota_L", "Peso_Nota_CH", "Peso_Nota_REDACAO"],
                                         colunas = ["CO_IES", "NO_CAMPUS", "Nome", "PesoNaturezas", "PesoMatematica", "PesoLinguagens", "PesoHumanas","PesoRedacao"],
                                         duplicadas= ["CO_IES", "NO_CAMPUS", "Nome"],
                                         todas = ["CodigoSISU", "CodigoIES", "Universidade", "Nome_Estado", "Nome_Municipio_Campus", "Campus", "Nome_Curso", "Grau", "Turno", "Cota", "Quant_Vagas_Cota", "Minimo_Nota_CN", "Peso_Nota_CN", "Minimo_Nota_MT", "Peso_Nota_MT", "Minimo_Nota_L", "Peso_Nota_L", "Minimo_Nota_CH", "Peso_Nota_CH", "Minimo_Nota_REDACAO", "Peso_Nota_REDACAO", "Media_Minima", "Bonus_Percentual", "Nota_Corte_1_Dia", "Diferenca_Corte_1_Para_2_Dia", "Nota_Corte_2_Dia", "Diferenca_Corte_2_Para_3_Dia", "Nota_Corte_3_Dia", "Diferenca_Corte_3_Para_4_Dia", "Nota_Corte_4_Dia"])
-                hash_pesos = {f"{linha["CO_IES"]}:{linha["NO_CAMPUS"]}:{linha["Nome"]}".lower(): 
+                hash_pesos = {f"{linha["CO_IES"]}:{linha["NO_CAMPUS"]}:{linha["Nome"]}".lower():
                                 [linha["PesoLinguagens"], linha["PesoHumanas"], linha["PesoNaturezas"], linha["PesoMatematica"], linha["PesoRedacao"]]
                               for _, linha in df_pesos.iterrows()}
 
@@ -142,7 +140,7 @@ def main(db_config=None):
                     try:
                         df.at[index, "PesoLinguagens"] = hash_pesos[hash_peso][0]
                         df.at[index, "PesoHumanas"] = hash_pesos[hash_peso][1]
-                        df.at[index, "PesoNaturezas"] = hash_pesos[hash_peso][2] 
+                        df.at[index, "PesoNaturezas"] = hash_pesos[hash_peso][2]
                         df.at[index, "PesoMatematica"] = hash_pesos[hash_peso][3]
                         df.at[index, "PesoRedacao"] = hash_pesos[hash_peso][4]
                     except KeyError:
@@ -157,11 +155,11 @@ def main(db_config=None):
                 print(f"Falhas id: {falhas_id}")
                 print(f"Falhas pesos: {falhas_pesos}")
             # Etapas necessárias pra pegar o idCota(gerado pelo SQL)
-            elif tabela == "cotacurso":
+            elif tabela == "CotaCurso":
                 with motor_sql.connect() as conexao:
                     resultado_query = conexao.execute(sqlalchemy.text('SELECT Codigo_IES, Descricao, idCota  FROM Cota'))
-                    hash_id_cota = {f"{linha[0]}:{linha[1]}".lower(): 
-                                        linha[2] 
+                    hash_id_cota = {f"{linha[0]}:{linha[1]}".lower():
+                                        linha[2]
                                      for linha in resultado_query}
                 df["idCota"] = 0
                 for index, linha in df.iterrows():
@@ -182,7 +180,7 @@ def ler_generico(arquivo, manter, colunas, duplicadas, todas=None):
     if todas is None:
         todas = ["EDICAO", "CO_IES", "NO_IES", "SG_IES", "DS_ORGANIZACAO_ACADEMICA", "DS_CATEGORIA_ADM", "NO_CAMPUS", "NO_MUNICIPIO_CAMPUS", "SG_UF_CAMPUS", "DS_REGIAO_CAMPUS", "CO_IES_CURSO", "NO_CURSO", "DS_GRAU", "DS_TURNO", "TP_MOD_CONCORRENCIA", "TIPO_CONCORRENCIA", "DS_MOD_CONCORRENCIA", "NU_PERCENTUAL_BONUS", "QT_VAGAS_OFERTADAS", "NU_NOTACORTE", "QT_INSCRICAO"]
     dropar = [item for item in todas if item not in manter]
-    
+
     df = pd.read_excel(partes_arquivo[0], sheet_name=partes_arquivo[1])
     df.drop(dropar, axis=1, inplace=True)
 
@@ -191,7 +189,7 @@ def ler_generico(arquivo, manter, colunas, duplicadas, todas=None):
         return df.drop_duplicates(duplicadas)
     else:
         return df
-    
+
 
 if __name__ == "__main__":
     main()

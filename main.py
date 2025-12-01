@@ -1,6 +1,6 @@
-from dash import Dash, html, dcc, Input, Output  
-import dash_ag_grid as dag                       
-import dash_bootstrap_components as dbc          
+from dash import Dash, html, dcc, Input, Output
+import dash_ag_grid as dag
+import dash_bootstrap_components as dbc
 import pandas as pd
 import sqlalchemy
 import numpy as np
@@ -20,7 +20,7 @@ def main():
     opcoes_notas = {linha["idProva"]: linha["Enem"] for index, linha in df_opcoes_notas.iterrows()}
 
     #
-    df_opcoes_turno = pd.read_sql('SELECT Turno FROM curso GROUP BY Turno;', con=motor_sql)
+    df_opcoes_turno = pd.read_sql('SELECT Turno FROM Curso GROUP BY Turno;', con=motor_sql)
     opcoes_turno = df_opcoes_turno['Turno'].tolist()
 
     # Cria o app do frontend
@@ -49,31 +49,31 @@ def main():
         instituicoes = [] if instituicoes is None else instituicoes
         cotas = [] if cotas is None else cotas
         turno = [] if turno is None else turno
-        
-        select_estados = "SELECT UF FROM campus GROUP BY UF ORDER BY UF "
+
+        select_estados = "SELECT UF FROM Campus GROUP BY UF ORDER BY UF "
         opcoes_estados = pd.read_sql(select_estados, con=motor_sql)["UF"].tolist()
 
-        select_cidades = "SELECT Cidade FROM campus "
+        select_cidades = "SELECT Cidade FROM Campus "
         select_cidades += f"    WHERE UF IN ('{"', '".join(estados)}') " if len(estados) > 0 else ""
         select_cidades += "GROUP BY Cidade ORDER BY Cidade"
         opcoes_cidades = pd.read_sql(select_cidades, con=motor_sql)["Cidade"].tolist()
 
         select_cotas = ("SELECT idCota,"
-                       "    CONCAT(cota.nome, ' ', instituicao.sigla) as Nome, "
+                       "    CONCAT(Cota.nome, ' ', Instituicao.sigla) as Nome, "
                        "    Descricao "
-                       "    FROM cota "
-                       "    JOIN instituicao on cota.Codigo_IES = instituicao.Codigo_IES "
-                      f"    WHERE cota.Codigo_IES IN ('{"', '".join(instituicoes)}')"
-                       "     ORDER BY instituicao.Sigla ")
+                       "    FROM Cota "
+                       "    JOIN Instituicao on Cota.Codigo_IES = Instituicao.Codigo_IES "
+                      f"    WHERE Cota.Codigo_IES IN ('{"', '".join(instituicoes)}')"
+                       "     ORDER BY Instituicao.Sigla ")
         opcoes_cotas = [{"value": str(linha["idCota"]), "label": linha["Nome"], "title": linha["Descricao"]}
                         for _, linha in pd.read_sql(select_cotas, con=motor_sql).iterrows()]
 
-        
-        select_instituicoes = ("SELECT instituicao.Codigo_IES, "
-                              "    instituicao.Nome, "
+
+        select_instituicoes = ("SELECT Instituicao.Codigo_IES, "
+                              "    Instituicao.Nome, "
                               "    Sigla "
-                              "    FROM instituicao "
-                              "    JOIN campus on campus.Codigo_IES = instituicao.Codigo_IES")
+                              "    FROM Instituicao "
+                              "    JOIN Campus on Campus.Codigo_IES = Instituicao.Codigo_IES")
         if sum(len(lista) > 0 for lista in [estados, cidades]) > 0:
             select_instituicoes += "    WHERE "
             if len(estados) > 0:
@@ -84,14 +84,14 @@ def main():
 
             if len(cidades) > 0:
                 select_instituicoes += f"        Cidade IN ('{"', '".join(cidades)}') "
-        select_instituicoes += "    GROUP BY instituicao.Codigo_IES ORDER BY Sigla"
+        select_instituicoes += "    GROUP BY Instituicao.Codigo_IES ORDER BY Sigla"
         opcoes_instituicoes = [{"value": str(linha["Codigo_IES"]), "label": linha["Sigla"], "title": linha["Nome"]}
                                 for _, linha in pd.read_sql(select_instituicoes, con=motor_sql).iterrows()]
 
         # Pega as notas de corte de determinada cota
         comando_query = ('SELECT'
                          '    Instituicao.Sigla as Instituicao, '
-                         '    Curso.Nome as Curso, ' 
+                         '    Curso.Nome as Curso, '
                          '    Curso.Modalidade as Modalidade,'
                          '    Curso.Turno as Turno,'
                          '    Cota.nome as Cota, '
@@ -118,14 +118,14 @@ def main():
 
             passou = "Sim" if media >= linha["Nota"] else "Não"
             linhas_tabela.append([linha["Instituicao"], linha["Curso"], linha["Modalidade"], linha["Turno"], linha["Cota"], round(media, 2), linha["Nota"], passou])
-        
-        return (pd.DataFrame(linhas_tabela, columns=["Instituição", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"]).to_dict('records'), 
+
+        return (pd.DataFrame(linhas_tabela, columns=["Instituição", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"]).to_dict('records'),
                 opcoes_estados,
                 opcoes_cidades,
                 opcoes_instituicoes,
                 opcoes_cotas)
-    
-    
+
+
     app.run(debug=False, port=8002)
 
 
