@@ -23,6 +23,7 @@ def main(db_config=None):
             "\n|6 - Ler cotas                    |"
             "\n|7 - Ler notas de corte           |"
             "\n|8 - Corrigir nomes cotas         |"
+            "\n|9 - Rollback de transação        |"
             "\n|0 - Sair                         |"
             f"\n+{'-='*16}-+"
             "\nSelecione uma opção: ")
@@ -52,7 +53,7 @@ def main(db_config=None):
     while opcao != 0:
         try:
             opcao = int(input(menu))
-            if not 0 <= opcao <= 8:
+            if not 0 <= opcao <= 9:
                 raise ValueError
         except ValueError:
             print("Valor invalido")
@@ -96,6 +97,10 @@ def main(db_config=None):
             sessao.commit()
             sessao.close()
 
+        elif opcao == 9:
+            with motor_sql.connect() as conexao:
+                conexao.rollback()
+
         elif 2 < opcao <= 7:
             tabela = equivalencias[opcao]
             df = ler_generico(arquivo, *argumentos[tabela].values())
@@ -113,6 +118,7 @@ def main(db_config=None):
                 df["PesoNaturezas"] = 1
                 df["PesoMatematica"] = 1
                 df["PesoRedacao"] = 1
+
 
                 df_pesos = ler_generico(arquivo_pesos,
                                         manter = ["CodigoIES", "Campus", "Nome_Curso", "Peso_Nota_CN", "Peso_Nota_MT", "Peso_Nota_L", "Peso_Nota_CH", "Peso_Nota_REDACAO"],
