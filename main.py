@@ -89,19 +89,22 @@ def main(app):
 
         # Pega as notas de corte de determinada cota
         comando_query = ('SELECT'
-                         '    Instituicao.Sigla as Instituicao, '
+                         '    Instituicao.Sigla as "Instituição", '
+                         '    Campus.Nome as "Campus", '
                          '    Curso.Nome as Curso, '
                          '    Curso.Modalidade as Modalidade,'
                          '    Curso.Turno as Turno,'
                          '    Cota.nome as Cota, '
-                         '    Nota, '
+                         '    Nota as "Nota de corte", '
                          '    Curso.PesoLinguagens, Curso.PesoHumanas, Curso.PesoNaturezas, Curso.PesoMatematica, Curso.PesoRedacao '
                          '    FROM CotaCurso '
                          '        INNER JOIN Curso on CotaCurso.Codigo_IES_Curso = Curso.Codigo_IES_Curso'
+                         '        INNER JOIN Campus on Curso.idCampus = Campus.idCampus'
                          '        INNER JOIN Cota on CotaCurso.idCota = Cota.idCota'
                          '        INNER JOIN Instituicao on Cota.Codigo_IES = Instituicao.Codigo_IES '
                         f'    WHERE CotaCurso.idCota IN ("{'", "'.join(cotas)}") ')
-        comando_query += f'AND Curso.Turno in ("{'", "'.join(turno)}") ' if len(turno) > 0 else ""
+        comando_query += f' AND Curso.Turno in ("{'", "'.join(turno)}") ' if len(turno) > 0 else ""
+        comando_query += f' AND Campus.cidade in ("{'", "'.join(cidades)}") ' if len(cidades) > 0 else ""
         notas_de_corte = pd.read_sql(comando_query, con=motor_sql)
         # Pega as notas da prova
         if id_nota is not None:
@@ -110,15 +113,18 @@ def main(app):
         else:
             lista_notas = [0, 0, 0, 0, 0]
 
-        # Cria cada linha da tabela, tendo as colunas: "Faculdade", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"
-        for _, linha in notas_de_corte.iterrows():
+        # Cria cada linha da tabela, tendo as colunas: "Faculdade", "Curso", "Modalidade", "Turno", "Cota", "Média", "Nota de corte"
+        notas_de_corte["Média ponderada"] = 0.0
+        notas_de_corte["Passa"] = "Sim"
+        for i, linha in notas_de_corte.iterrows():
             lista_pesos = [linha["PesoLinguagens"], linha["PesoHumanas"], linha["PesoNaturezas"], linha["PesoMatematica"], linha["PesoRedacao"]]
-            media = np.average(lista_notas, weights=lista_pesos)
+            notas_de_corte.at[i, "Média"] = round(np.average(lista_notas, weights=lista_pesos), 2)
+            media = round(np.average(lista_notas, weights=lista_pesos), 2)
+            
+            notas_de_corte.at[i, "Média"] = media
+            notas_de_corte.at[i, "Passa"] = "Sim" if media >= linha["Nota de corte"] else "Não"
 
-            passou = "Sim" if media >= linha["Nota"] else "Não"
-            linhas_tabela.append([linha["Instituicao"], linha["Curso"], linha["Modalidade"], linha["Turno"], linha["Cota"], round(media, 2), linha["Nota"], passou])
-
-        return (pd.DataFrame(linhas_tabela, columns=["Instituição", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"]).to_dict('records'),
+        return (notas_de_corte.to_dict('records'),
                 opcoes_estados,
                 opcoes_cidades,
                 opcoes_instituicoes,
@@ -126,56 +132,73 @@ def main(app):
 
 
 def gerar_layout(opcoes_notas, opcoes_turno):
-    colunas_tabela = [{"field": i} for i in ["Instituição", "Curso", "Modalidade", "Turno", "Cota", "Média com peso", "Nota de corte", "Passa?"]]
     container = dbc.Container([
         # Título
         html.H1("Quais cursos eu passo?", style={'textAlign':'center'}),
 
+        #html.Div([
         dbc.Row([
             dbc.Col([
-                html.H2("Nota", style={'textAlign':'center'}),
+                html.H2("Nota"),
                 dcc.Dropdown(
                     id='nota',
                     options=opcoes_notas)
-            ], width=4),
+            ], width=3, className="btn btn-secondary", style={'margin': '5px'}),
 
             dbc.Col([
-                html.H2("Cota", style={'textAlign':'center'}),
+                html.H2("Cota"),
                 dcc.Dropdown(id='cotas', multi=True, closeOnSelect=False)
-            ], width=2),
+            ], width=3, className="btn btn-secondary", style={'margin': '5px'}),
 
             dbc.Col([
-                html.H2("Turno", style={'textAlign':'center'}),
+                html.H2("Turno"),
                 dcc.Dropdown(id='turno', options=opcoes_turno, multi=True, closeOnSelect=False)
-            ], width=2)
-        ]),
+            ], width=2, className="btn btn-secondary", style={'margin': '5px'})
+        ], justify="center", style={'margin-bottom': '20px'}),
 
         dbc.Row([
             dbc.Col([
-                html.H2("Estado", style={'textAlign':'center'}),
+                html.H2("Estado"),
                 dcc.Dropdown(id='estados', multi=True, closeOnSelect=False)
-            ], width=2),
+            ], width=2, className="btn btn-secondary", style={'margin': '5px'}),
 
             dbc.Col([
-                html.H2("Cidade", style={'textAlign':'center'}),
+                html.H2("Cidade"),
                 dcc.Dropdown(id='cidades', multi=True, closeOnSelect=False)
-            ], width=4),
+            ], width=3, className="btn btn-secondary", style={'margin': '5px'}),
 
             dbc.Col([
-                html.H2("Instituições", style={'textAlign':'center'}),
+                html.H2("Instituições"),
                 dcc.Dropdown(id='instituicoes', multi=True, closeOnSelect=False)
-            ], width=2)
-        ]),
+            ], width=3, className="btn btn-secondary", style={'margin': '5px'})
+        ], justify="center"
+        ),
 
         dbc.Row([
-            dbc.Col([
+            dbc.Col(
                 dag.AgGrid(
-                    columnDefs=colunas_tabela,
-                    id='tabela'
-                )
-            ], width=12)
-        ]),
-    ])
+                columnDefs = [{"field": "Instituição",     'tooltipValueGetter': {"function": "params.value + ' - ' + params.data.Campus"}},
+                            {"field": "Curso",           'tooltipField': 'Curso'},
+                            {"field": "Modalidade",      'tooltipField': 'Modalidade'},
+                            {"field": "Turno",           'tooltipField': 'Turno'},
+                            {"field": "Cota",            'tooltipField': 'Cota'},
+                            {"field": "Média", 'tooltipField': 'Média', 'cellClassRules': {
+                                'text-warning': 'params.data.Passa == "Não"',
+                                'text-success': 'params.data.Passa == "Sim"',
+                                }},
+                            {"field": "Nota de corte",   'tooltipField': 'Nota de corte'},],
+                defaultColDef={"flex": 1},
+                id='tabela',
+                columnSize="autoSize",
+                dashGridOptions={
+                    "tooltipShowDelay":0, 
+                    "tooltipInteraction": True,
+                    "popupParent": {"function": "setBody()"}
+                },
+            ), sm=12, md=10, lg=8,
+            )],
+            justify="center"),
+    ], fluid=True)
 
     return container
 
